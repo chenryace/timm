@@ -36,10 +36,18 @@ export interface S3StoreConfiguration {
     region: string;
     forcePathStyle: boolean;
     prefix: string;
-    proxyAttachments: boolean;
+    // S3 specific fields removed:
+    // detectCredentials, accessKey, secretKey, bucket, endpoint, region, forcePathStyle, proxyAttachments
+    pgConnectionString?: string; // Added for PostgreSQL
+    prefix: string;
 }
 
-export type StoreConfiguration = S3StoreConfiguration;
+// StoreConfiguration is now specific to PostgreSQL
+// export type StoreConfiguration = S3StoreConfiguration; // Removed
+export type StoreConfiguration = {
+    pgConnectionString?: string;
+    prefix?: string;
+};
 
 export interface ServerConfiguration {
     useSecureCookies: boolean;
@@ -249,120 +257,48 @@ export function loadConfigAndListErrors(): {
     }
     // for now, this works
     try {
-        store.detectCredentials ??= true;
-        tryElseAddError(
-            () => {
-                store.accessKey =
-                    env.getEnvRaw(
-                        'STORE_ACCESS_KEY',
-                        !store.detectCredentials && !store.accessKey
-                    ) ?? store.accessKey;
-            },
-            (e) => ({
-                name: 'Store access key was not provided',
-                category: IssueCategory.CONFIG,
-                description:
-                    'The store access key was not provided to Notea, and detecting credentials is disabled.',
+        // Read POSTGRES_URL environment variable
+        const postgresUrlFromEnv = env.getEnvRaw('POSTGRES_URL', false);
+
+        // If pgConnectionString is in the config file, it takes precedence.
+        // Otherwise, use the environment variable.
+        // If neither is present and it's required, an error should be raised.
+        if (store.pgConnectionString) {
+            // pgConnectionString is already set from config file, nothing to do from env
+            if (postgresUrlFromEnv) {
+                 errors.push({
+                    name: 'Duplicate PostgreSQL Configuration',
+                    description: 'PostgreSQL connection string is defined in both the config file (store.pgConnectionString) and POSTGRES_URL environment variable. Using the value from the config file.',
+                    severity: IssueSeverity.WARNING,
+                    category: IssueCategory.CONFIG,
+                    fixes: [{description: 'Remove one of the configurations to avoid ambiguity.', recommendation: IssueFixRecommendation.RECOMMENDED}]
+                });
+            }
+        } else if (postgresUrlFromEnv) {
+            store.pgConnectionString = postgresUrlFromEnv;
+        } else {
+            // pgConnectionString is not in config file and not in env.
+            // The createStore function in store/index.ts will throw an error if it's missing.
+            // We can also add an error here if desired.
+             errors.push({
+                name: 'Missing PostgreSQL Configuration',
+                description: 'PostgreSQL connection string is not defined in the config file (store.pgConnectionString) nor in the POSTGRES_URL environment variable.',
                 severity: IssueSeverity.FATAL_ERROR,
-                cause: coerceToValidCause(e),
-                fixes: [
-                    {
-                        description:
-                            'Set the STORE_ACCESS_KEY environment variable',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                    },
-                    {
-                        description:
-                            'Set store.accessKey in the configuration file',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                    },
-                    {
-                        description: 'Allow autodetection of credentials',
-                        recommendation: IssueFixRecommendation.NEUTRAL,
-                    },
-                ],
-            })
-        );
-        tryElseAddError(
-            () => {
-                store.secretKey =
-                    env.getEnvRaw(
-                        'STORE_SECRET_KEY',
-                        !store.detectCredentials && !store.secretKey
-                    ) ?? store.secretKey;
-            },
-            (e) => ({
-                name: 'Store secret key was not provided',
                 category: IssueCategory.CONFIG,
-                description:
-                    'The store secret key was not provided to Notea, and detecting credentials is disabled.',
-                severity: IssueSeverity.FATAL_ERROR,
-                cause: coerceToValidCause(e),
                 fixes: [
-                    {
-                        description:
-                            'Set the STORE_SECRET_KEY environment variable',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                    },
-                    {
-                        description:
-                            'Set store.secretKey in the configuration file',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                    },
-                    {
-                        description: 'Allow autodetection of credentials',
-                        recommendation: IssueFixRecommendation.NEUTRAL,
-                    },
-                ],
-            })
-        );
-        store.bucket = env.getEnvRaw('STORE_BUCKET', false) ?? 'notea';
-        store.forcePathStyle =
-            env.parseBool(env.getEnvRaw('STORE_FORCE_PATH_STYLE', false)) ??
-            store.forcePathStyle ??
-            false;
-        tryElseAddError(
-            () => {
-                store.endpoint =
-                    env.getEnvRaw('STORE_END_POINT', store.endpoint == null) ??
-                    store.endpoint;
-            },
-            (e) => ({
-                name: 'Store endpoint was not provided',
-                category: IssueCategory.CONFIG,
-                description: 'The store endpoint was not provided to Notea.',
-                severity: IssueSeverity.FATAL_ERROR,
-                cause: coerceToValidCause(e),
-                fixes: [
-                    {
-                        description:
-                            'Set the STORE_END_POINT environment variable',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                        steps: [
-                            ErrInstruction.ENV_EDIT,
-                            "Set a variable with STORE_END_POINT as key and your store's endpoint as the variable. Note that the endpoint must be resolvable by the server Notea runs on.",
-                        ],
-                    },
-                    {
-                        description:
-                            'Set store.endpoint in the configuration file',
-                        recommendation: IssueFixRecommendation.RECOMMENDED,
-                        steps: [
-                            ErrInstruction.CONFIG_FILE_OPEN,
-                            "In the store section, set endpoint to your store's endpoint.",
-                        ],
-                    },
-                ],
-            })
-        );
-        store.region =
-            env.getEnvRaw('STORE_REGION', false) ?? store.region ?? 'us-east-1';
-        store.prefix =
-            env.getEnvRaw('STORE_PREFIX', false) ?? store.prefix ?? '';
-        store.proxyAttachments = env.parseBool(
-            env.getEnvRaw('DIRECT_RESPONSE_ATTACHMENT', false),
-            store.proxyAttachments ?? false
-        );
+                    { description: 'Set the POSTGRES_URL environment variable.', recommendation: IssueFixRecommendation.RECOMMENDED },
+                    { description: 'Set store.pgConnectionString in the configuration file.', recommendation: IssueFixRecommendation.RECOMMENDED }
+                ]
+            });
+        }
+
+        // Process STORE_PREFIX
+        store.prefix = env.getEnvRaw('STORE_PREFIX', false) ?? store.prefix ?? '';
+
+        // Removed all S3 specific configurations:
+        // store.detectCredentials, store.accessKey, store.secretKey, 
+        // store.bucket, store.forcePathStyle, store.endpoint, store.region, store.proxyAttachments
+
     } catch (e) {
         errors.push({
             name: ErrTitle.INVALID_STORE_CONFIG,

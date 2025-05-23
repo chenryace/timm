@@ -1,6 +1,7 @@
 import { NoteModel } from 'libs/shared/note';
 import dynamic from 'next/dynamic';
-import { HTMLAttributes, useEffect, useMemo } from 'react';
+// Removed 'useEffect' from here as it was unused in the previous version that caused ESLint error
+import { HTMLAttributes, useMemo } from 'react';
 import EditTitle from './edit-title';
 import { useNoteState } from 'libs/web/state/note';
 import PortalState from 'libs/web/state/portal';
@@ -22,19 +23,19 @@ const Editor = dynamic(() => import('./editor'), {
 interface MainEditorProps extends HTMLAttributes<HTMLDivElement> {
   note?: NoteModel;
   padding?: boolean;
-  readOnly?: boolean; // Added readOnly prop
-  isPreview?: boolean; // Added isPreview prop (optional, if MainEditor needs to behave differently)
+  readOnly?: boolean;
+  isPreview?: boolean;
 }
 
 const MainEditor = (
   props: MainEditorProps
 ) => {
-  const { 
-    note: noteFromProps, 
-    padding, 
-    readOnly = false, // Default to false if not provided
-    isPreview = false, 
-    ...restHtmlProps 
+  const {
+    note: noteFromProps,
+    padding,
+    readOnly = false,
+    isPreview = false,
+    ...restHtmlProps
   } = props;
 
   const { note: noteFromNoteState, loading: noteStateLoading } = useNoteState();
@@ -51,10 +52,8 @@ const MainEditor = (
     }
     return null;
   }, [router.query.id]);
-  
-  const isNewNoteFlow = useMemo(() => has(router.query, 'new'), [router.query.new]);
 
-  // useEffect for editor content initialization is primarily handled within useEditor hook
+  const isNewNoteFlow = useMemo(() => has(router.query, 'new'), [router.query.new]);
 
   const showBacklinks = useMemo(() => {
     return (
@@ -62,11 +61,11 @@ const MainEditor = (
       noteToUse &&
       settings.backlinks &&
       !noteToUse.shared &&
-      !isPreview // Do not show backlinks in preview mode, for example
+      !isPreview
     );
   }, [noteToUse, settings.backlinks, isNewNoteFlow, isPreview]);
 
-  const effectiveReadOnly = readOnly || isPreview; // Preview mode should also be read-only for editor
+  const effectiveReadOnly = readOnly || isPreview;
 
   if (editorState.isLoading || noteStateLoading) {
     return (
@@ -80,7 +79,7 @@ const MainEditor = (
   if (!noteToUse && !isNewNoteFlow && !noteIdFromRouter) {
       return (
           <div className="p-4 text-center text-gray-500">
-              请从左侧选择一篇笔记或创建新笔记。
+              Please select a note from the left or create a new one.
           </div>
       );
   }
@@ -88,35 +87,34 @@ const MainEditor = (
   return (
     <section {...restHtmlProps}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingX: padding ? 4 : 0, paddingTop: 2 }}>
-        <EditTitle 
-          value={editorState.effectiveTitle} 
-          onChange={(e) => editorState.handleTitleChange(e.target.value)} 
+        <EditTitle
+          value={editorState.effectiveTitle}
+          onChange={(e) => editorState.handleTitleChange(e.target.value)}
           isLoading={editorState.isLoading}
-          readOnly={effectiveReadOnly} // Pass readOnly status to EditTitle if it supports it
+          readOnly={effectiveReadOnly}
         />
-        {/* Hide Save button in readOnly or preview mode, or if it's a shared note being viewed */}
         {!(effectiveReadOnly || noteToUse?.shared) && (
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={editorState.saveNoteToServer}
             disabled={editorState.isSaving || (!editorState.hasLocalChanges && !isNewNoteFlow) || editorState.isLoading}
             size="small"
           >
-            {editorState.isSaving ? '保存中...' : '保存到服务器'}
+            {editorState.isSaving ? 'Saving...' : 'Save to Server'}
           </Button>
         )}
       </Box>
-      
+
       {modal}
       <div className={padding ? 'px-4 pb-4' : 'pb-4'}>
         <Editor
           _id={noteToUse?.id || (isNewNoteFlow ? 'new-note-editor' : undefined)}
           value={editorState.effectiveContent}
           onChange={(v) => editorState.onEditorContentChange(v)}
-          editable={!effectiveReadOnly && !noteToUse?.shared} // Editor is not editable if in readOnly/preview or shared
+          editable={!effectiveReadOnly && !noteToUse?.shared}
           isLoading={editorState.isLoading}
         />
-        {showBacklinks && <Backlinks note={noteToUse} />} 
+        {showBacklinks && <Backlinks note={noteToUse} />}
       </div>
     </section>
   );

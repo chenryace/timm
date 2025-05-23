@@ -1,103 +1,111 @@
-import { FC, useEffect, useState } from 'react';
-import { use100vh } from 'react-div-100vh';
-import MarkdownEditor, { Props } from '@notea/rich-markdown-editor';
-import { useEditorTheme } from './theme';
-import useMounted from 'libs/web/hooks/use-mounted';
-import Tooltip from './tooltip';
+// [start of components/editor/editor.tsx]
+import type { EditorOptions } from '@tiptap/core';
+import { EditorContent, EditorEvents, useEditor as useTipTapEditor } from '@tiptap/react'; // Added EditorContent
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+// import { useDebouncedCallback } from 'use-debounce'; // Debouncing now handled in useEditor hook
+import { useEditorState } from 'libs/web/state/editor'; // Corrected: useEditorState is the hook itself
+import PortalState from 'libs/web/state/portal';
+import UIState from 'libs/web/state/ui';
 import extensions from './extensions';
-import EditorState from 'libs/web/state/editor';
-import { useToast } from 'libs/web/hooks/use-toast';
-import { useDictionary } from './dictionary';
-import { useEmbeds } from './embeds';
+import LinkToolbar from '../portal/link-toolbar';
+import { Skeleton } from '@mui/material';
 
-export interface EditorProps extends Pick<Props, 'readOnly'> {
-    isPreview?: boolean;
+// const DEBOUNCE_INPUT_MS = 200; // Debounce logic moved to useEditor hook
+
+interface Props {
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  editable?: boolean;
+  isLoading?: boolean;
+  onSave?: () => void;
 }
 
-const Editor: FC<EditorProps> = ({ readOnly, isPreview }) => {
-    const {
-        onSearchLink,
-        onCreateLink,
-        onClickLink,
-        onUploadImage,
-        onHoverLink,
-        onEditorChange,
-        backlinks,
-        editorEl,
-        note,
-    } = EditorState.useContainer();
-    const height = use100vh();
-    const mounted = useMounted();
-    const editorTheme = useEditorTheme();
-    const [hasMinHeight, setHasMinHeight] = useState(true);
-    const toast = useToast();
-    const dictionary = useDictionary();
-    const embeds = useEmbeds();
+export interface EditorHandle {
+  focus: () => void;
+  showLinkToolbar: () => void;
+}
+
+const Editor = forwardRef<EditorHandle, Props>(
+  ({ id, value, onChange, editable = true, isLoading = false, onSave }: Props, ref) => {
+    const { editorSettings } = UIState.useContainer();
+    const { setLinkToolbar } = PortalState.useContainer();
+    const editorStateHook = useEditorState(); // Renamed for clarity if useEditor is from tiptap
+
+    const editor = useTipTapEditor({
+      editable,
+      content: value,
+      extensions: extensions(),
+      editorProps: {
+        attributes: {
+          class: 'focus:outline-none prose dark:prose-invert max-w-none w-full',
+        },
+      },
+      onUpdate: (props: EditorEvents['update']) => {
+        // Directly call onChange prop when TipTap's content changes.
+        // The actual debouncing and saving to IndexedDB is handled by the parent (useEditor hook).
+        onChange(props.editor.getHTML());
+      },
+      // onCreate and onFocus/onBlur can be added if specific logic needed here
+    });
 
     useEffect(() => {
-        if (isPreview) return;
-        setHasMinHeight((backlinks?.length ?? 0) <= 0);
-    }, [backlinks, isPreview]);
+      if (editor && !editor.isDestroyed && value !== editor.getHTML()) {
+        // If the external value prop changes, update the editor content.
+        // This ensures the editor is a controlled component.
+        // Check focus to prevent cursor jumping if user is typing.
+        if (!editor.isFocused) {
+            editor.commands.setContent(value, false); // false to not emit update event from here
+        }
+      }
+    }, [value, editor]);
+
+    useEffect(() => {
+      if (editor && editorStateHook.setEditor) {
+        editorStateHook.setEditor(editor as any);
+      }
+      return () => {
+        if (editorStateHook.setEditor) {
+          editorStateHook.setEditor(undefined);
+        }
+      };
+    }, [editor, editorStateHook.setEditor]);
+
+    useEffect(() => {
+      if (editor?.isDestroyed) return;
+      editor?.setEditable(editable);
+    }, [editable, editor]);
+
+    useEffect(() => {
+      if (editorSettings.autoFocusEditor && editor && !editor.isFocused && editable) {
+        editor.commands.focus();
+      }
+    }, [editorSettings.autoFocusEditor, editor, editable]);
+
+    useImperativeHandle(ref, () => ({
+      focus() {
+        editor?.commands.focus();
+      },
+      showLinkToolbar() {
+        if (editor) {
+          setLinkToolbar({ editor, show: true });
+        }
+      },
+    }));
+
+    if (isLoading) {
+        return <Skeleton variant="rectangular" height={300} className="mt-4 mx-4" />;
+    }
 
     return (
-        <>
-            <MarkdownEditor
-                readOnly={readOnly}
-                id={note?.id}
-                ref={editorEl}
-                value={mounted ? note?.content : ''}
-                onChange={onEditorChange}
-                placeholder={dictionary.editorPlaceholder}
-                theme={editorTheme}
-                uploadImage={(file) => onUploadImage(file, note?.id)}
-                onSearchLink={onSearchLink}
-                onCreateLink={onCreateLink}
-                onClickLink={onClickLink}
-                onHoverLink={onHoverLink}
-                onShowToast={toast}
-                dictionary={dictionary}
-                tooltip={Tooltip}
-                extensions={extensions}
-                className="px-4 md:px-0"
-                embeds={embeds}
-            />
-            <style jsx global>{`
-                .ProseMirror ul {
-                    list-style-type: disc;
-                }
-
-                .ProseMirror ol {
-                    list-style-type: decimal;
-                }
-
-                .ProseMirror {
-                    ${hasMinHeight
-                        ? `min-height: calc(${
-                              height ? height + 'px' : '100vh'
-                          } - 14rem);`
-                        : ''}
-                    padding-bottom: 10rem;
-                }
-
-                .ProseMirror h1 {
-                    font-size: 2.8em;
-                }
-                .ProseMirror h2 {
-                    font-size: 1.8em;
-                }
-                .ProseMirror h3 {
-                    font-size: 1.5em;
-                }
-                .ProseMirror a:not(.bookmark) {
-                    text-decoration: underline;
-                }
-
-                .ProseMirror .image .ProseMirror-selectednode img {
-                    pointer-events: unset;
-                }
-            `}</style>
-        </>
+      <>
+        {editor && <LinkToolbar editor={editor} />}
+        <EditorContent editor={editor} className="flex-grow overflow-y-auto p-4" />
+      </>
     );
-};
+  }
+);
 
+Editor.displayName = 'Editor';
 export default Editor;
+// [end of components/editor/editor.tsx]

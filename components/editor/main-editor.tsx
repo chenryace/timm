@@ -1,6 +1,5 @@
 import { NoteModel } from 'libs/shared/note';
 import dynamic from 'next/dynamic';
-// Removed 'useEffect' from here as it was unused in the previous version that caused ESLint error
 import { HTMLAttributes, useMemo } from 'react';
 import EditTitle from './edit-title';
 import { useNoteState } from 'libs/web/state/note';
@@ -11,15 +10,15 @@ import Backlinks from './backlinks';
 import { useRouter } from 'next/router';
 import { NOTE_ID_REGEXP } from 'libs/shared/note';
 import { get } from 'lodash';
-import { Skeleton, Button } from '@mui/material';
-import Box from '@mui/material/Box';
+// Corrected Material UI v4 imports
+import { Button, Box } from '@material-ui/core';
+import { Skeleton } from '@material-ui/lab'; // Skeleton is typically from lab in v4
 
 const Editor = dynamic(() => import('./editor'), {
   ssr: false,
   loading: () => <Skeleton variant="rectangular" height={300} className="mt-4" />,
 });
 
-// Define the props for MainEditor
 interface MainEditorProps extends HTMLAttributes<HTMLDivElement> {
   note?: NoteModel;
   padding?: boolean;
@@ -70,6 +69,7 @@ const MainEditor = (
   if (editorState.isLoading || noteStateLoading) {
     return (
       <div className="px-4 pb-4">
+        {/* Ensure Skeleton here is the one imported from @material-ui/lab */}
         <Skeleton variant="text" width={200} height={40} className="mb-2" />
         <Skeleton variant="rectangular" height={300} className="mt-4" />
       </div>
@@ -94,7 +94,7 @@ const MainEditor = (
           readOnly={effectiveReadOnly}
         />
         {!(effectiveReadOnly || noteToUse?.shared) && (
-          <Button
+          <Button // Button from @material-ui/core
             variant="contained"
             onClick={editorState.saveNoteToServer}
             disabled={editorState.isSaving || (!editorState.hasLocalChanges && !isNewNoteFlow) || editorState.isLoading}

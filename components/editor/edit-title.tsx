@@ -1,8 +1,8 @@
-import UIState from 'libs/web/state/ui';
+import UIState from 'libs/web/state/ui'; // UIState is kept in case other settings are needed in future
 import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'next-i18next';
-import { Skeleton } from '@material-ui/lab'; 
+import { Skeleton } from '@material-ui/lab';
 
 interface Props {
   value: string;
@@ -19,21 +19,22 @@ const EditTitle = ({
   ...props
 }: Props & DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>) => {
   const { t } = useTranslation('common');
-  // Correctly access the nested settings object
-  const { settings: settingsFromHook } = UIState.useContainer(); 
-  const { settings } = settingsFromHook; // This 'settings' holds the actual Settings type
+  // const { settings: settingsContainer } = UIState.useContainer();
+  // const { settings } = settingsContainer;
+  // Since settings.autoFocusTitle does not exist, we don't need to get settings for this specific effect.
+  // If other settings were used, we would uncomment and use them.
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // Use the correctly accessed autoFocusTitle
-    if (settings?.autoFocusTitle && ref.current && !readOnly) {
-      ref.current.focus();
+    // Original logic for autoFocusTitle removed as the setting doesn't exist.
+    // If you want the title to focus by default in non-readonly mode,
+    // you could simplify this to:
+    if (!readOnly && ref.current) {
+      // ref.current.focus(); // You can uncomment this if you always want focus on mount when not readOnly
     }
-    // Add settings or settings.autoFocusTitle to dependency array
-  }, [settings?.autoFocusTitle, readOnly, ref]);
+  }, [readOnly, ref]); // Dependency array updated
 
   if (isLoading) {
-    // Ensure Skeleton is correctly imported and used if this isLoading state is still relevant
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;
   }
 

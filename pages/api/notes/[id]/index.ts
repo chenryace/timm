@@ -1,31 +1,36 @@
 import { api } from 'libs/server/connect';
-import { metaToJson } from 'libs/server/meta';
+// Removed metaToJson
 import { useAuth } from 'libs/server/middlewares/auth';
 import { useStore } from 'libs/server/middlewares/store';
 import { getPathNoteById } from 'libs/server/note-path';
 import { NoteModel } from 'libs/shared/note';
 import { StoreProvider } from 'libs/server/store';
 import { API } from 'libs/server/middlewares/error';
-import { strCompress } from 'libs/shared/str';
+// Removed strCompress
 import { ROOT_ID } from 'libs/shared/tree';
 
 export async function getNote(
     store: StoreProvider,
     id: string
 ): Promise<NoteModel> {
-    const { content, meta } = await store.getObjectAndMeta(getPathNoteById(id));
+    // meta from getObjectAndMeta is already a JS object with StorePostgreSQL
+    const { content, meta: directMeta } = await store.getObjectAndMeta(getPathNoteById(id));
 
-    if (!content && !meta) {
+    if (!content && !directMeta) {
         throw API.NOT_FOUND.throw();
     }
 
-    const jsonMeta = metaToJson(meta);
-
+    // directMeta should contain title, created_at, updated_at, and other fields from the JSONB meta column
+    // The NoteModel expects fields like 'title', 'pid', 'pic', 'deleted', 'shared', 'pinned', 'editorsize', 'date'.
+    // We assume directMeta provides these or they are mapped correctly by StorePostgreSQL's getObjectAndMeta.
+    // Specifically, StorePostgreSQL's getObjectAndMeta for a note returns:
+    // { content, meta: { ...metaFromDbJsonb, title, created_at, updated_at }, contentType }
+    // So, directMeta here is { ...metaFromDbJsonb, title, created_at, updated_at }
     return {
         id,
         content: content || '\n',
-        ...jsonMeta,
-    } as NoteModel;
+        ...(directMeta || {}), // Spread the directMeta object
+    } as NoteModel; // Cast as NoteModel, assuming the structure matches
 }
 
 export default api()
@@ -59,23 +64,30 @@ export default api()
         const id = req.query.id as string;
         const { content } = req.body;
         const notePath = getPathNoteById(id);
+        // oldMeta from getObjectMeta is already a JS object with StorePostgreSQL
         const oldMeta = await req.state.store.getObjectMeta(notePath);
 
-        if (oldMeta) {
-            oldMeta['date'] = strCompress(new Date().toISOString());
-        }
+        const updatedMeta = { ...(oldMeta || {}) };
 
-        // Empty content may be a misoperation
+        // Update the 'date' field directly.
+        // Assuming 'date' is a field within the metadata object (potentially from JSONB).
+        // If 'date' is meant to be the general update timestamp, StorePostgreSQL's putObject
+        // should handle updating 'updated_at' column automatically.
+        // For consistency with original S3 logic of explicit 'date' field in meta:
+        updatedMeta.date = new Date().toISOString();
+
+
+        // Empty content may be a misoperation, create a backup
         if (!content || content.trim() === '\\') {
             await req.state.store.copyObject(notePath, notePath + '.bak', {
-                meta: oldMeta,
+                meta: updatedMeta, // Pass the updated JS object
                 contentType: 'text/markdown',
             });
         }
 
         await req.state.store.putObject(notePath, content, {
             contentType: 'text/markdown',
-            meta: oldMeta,
+            meta: updatedMeta, // Pass the updated JS object
         });
 
         res.status(204).end();

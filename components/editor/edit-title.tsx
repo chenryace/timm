@@ -1,8 +1,9 @@
-import UIState from 'libs/web/state/ui'; // UIState is kept in case other settings are needed in future
+// [start of components/editor/edit-title.tsx]
+// import UIState from 'libs/web/state/ui'; // Removed as it's no longer used in this file
 import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'next-i18next';
-import { Skeleton } from '@material-ui/lab';
+import { Skeleton } from '@material-ui/lab'; 
 
 interface Props {
   value: string;
@@ -19,20 +20,16 @@ const EditTitle = ({
   ...props
 }: Props & DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>) => {
   const { t } = useTranslation('common');
-  // const { settings: settingsContainer } = UIState.useContainer();
-  // const { settings } = settingsContainer;
-  // Since settings.autoFocusTitle does not exist, we don't need to get settings for this specific effect.
-  // If other settings were used, we would uncomment and use them.
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // Original logic for autoFocusTitle removed as the setting doesn't exist.
-    // If you want the title to focus by default in non-readonly mode,
-    // you could simplify this to:
+    // Original logic for autoFocusTitle removed as the setting doesn't exist in Settings type.
+    // If you want the title to focus by default in non-readonly mode, 
+    // and not based on a specific setting, you could simplify this to:
     if (!readOnly && ref.current) {
       // ref.current.focus(); // You can uncomment this if you always want focus on mount when not readOnly
     }
-  }, [readOnly, ref]); // Dependency array updated
+  }, [readOnly, ref]);
 
   if (isLoading) {
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;

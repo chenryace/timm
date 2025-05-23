@@ -1,4 +1,4 @@
-import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef, CSSProperties } from 'react'; // Added CSSProperties
+import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'next-i18next';
 import { Skeleton } from '@material-ui/lab'; 
@@ -11,7 +11,7 @@ interface Props {
   // Allow standard HTML attributes for TextareaAutosize, but we'll be careful with spreading
   customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className'>;
   className?: string;
-  style?: CSSProperties;
+  // style prop is removed from here to avoid passing it to TextareaAutosize directly
 }
 
 const EditTitle = ({
@@ -19,9 +19,8 @@ const EditTitle = ({
   onChange,
   isLoading = false,
   readOnly = false,
-  customHtmlProps, // Use this for other specific HTML props if needed
-  className,
-  style // We'll handle style carefully
+  customHtmlProps,
+  className, // Use className passed from parent if any
 }: Props) => {
   const { t } = useTranslation('common');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -35,20 +34,14 @@ const EditTitle = ({
   // Combine the default className with any incoming className
   const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none ${className || ''}`.trim();
 
-  // Prepare style prop, excluding height if it's a string to avoid conflict
-  const sanitizedStyle = { ...style };
-  if (typeof sanitizedStyle.height === 'string') {
-    delete sanitizedStyle.height; // Remove string height to prevent type error
-  }
-
   if (isLoading) {
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;
   }
 
   return (
     <TextareaAutosize
-      className={combinedClassName}
-      style={sanitizedStyle} // Pass sanitized style
+      className={combinedClassName} // Apply classNames for styling
+      // style prop is intentionally not passed to avoid type conflicts
       placeholder={t('Untitled')}
       value={value}
       onChange={onChange}

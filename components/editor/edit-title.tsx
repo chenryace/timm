@@ -1,5 +1,5 @@
 import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
-import TextareaAutosize from 'react-textarea-autosize';
+import TextareaAutosize from 'react-textarea-autosize'; // Make sure this is the correct import if it's namespaced
 import { useTranslation } from 'next-i18next';
 import { Skeleton } from '@material-ui/lab'; 
 
@@ -8,10 +8,8 @@ interface Props {
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   isLoading?: boolean;
   readOnly?: boolean;
-  // Allow standard HTML attributes for TextareaAutosize, but we'll be careful with spreading
-  customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className'>;
+  customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className' | 'ref'>;
   className?: string;
-  // style prop is removed from here to avoid passing it to TextareaAutosize directly
 }
 
 const EditTitle = ({
@@ -20,7 +18,7 @@ const EditTitle = ({
   isLoading = false,
   readOnly = false,
   customHtmlProps,
-  className, // Use className passed from parent if any
+  className,
 }: Props) => {
   const { t } = useTranslation('common');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -31,8 +29,7 @@ const EditTitle = ({
     }
   }, [readOnly, ref]);
 
-  // Combine the default className with any incoming className
-  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none ${className || ''}`.trim();
+  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none \${className || ''}`.trim();
 
   if (isLoading) {
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;
@@ -40,15 +37,14 @@ const EditTitle = ({
 
   return (
     <TextareaAutosize
-      className={combinedClassName} // Apply classNames for styling
-      // style prop is intentionally not passed to avoid type conflicts
+      className={combinedClassName}
       placeholder={t('Untitled')}
       value={value}
       onChange={onChange}
-      ref={ref}
+      inputRef={ref} // Changed from ref={ref} to inputRef={ref}
       maxRows={5}
       readOnly={readOnly}
-      {...customHtmlProps} // Spread any other explicitly passed safe HTML attributes
+      {...customHtmlProps}
     />
   );
 };

@@ -8,9 +8,9 @@ interface Props {
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   isLoading?: boolean;
   readOnly?: boolean;
-  customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className' | 'ref'>;
+  // We are not using customHtmlProps for now to simplify and isolate the ref issue
+  // customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className' | 'ref'>;
   className?: string;
-  // style prop removed from Props interface as it's not passed to TextareaAutosize
 }
 
 const EditTitle = ({
@@ -18,7 +18,7 @@ const EditTitle = ({
   onChange,
   isLoading = false,
   readOnly = false,
-  customHtmlProps,
+  // customHtmlProps, // Not using for now
   className,
 }: Props) => {
   const { t } = useTranslation('common');
@@ -26,11 +26,11 @@ const EditTitle = ({
 
   useEffect(() => {
     if (!readOnly && ref.current) {
-      // ref.current.focus(); // Uncomment if you always want focus on mount when not readOnly
+      // ref.current.focus();
     }
   }, [readOnly, ref]);
 
-  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none ${className || ''}`.trim();
+  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none \${className || ''}`.trim();
 
   if (isLoading) {
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;
@@ -42,10 +42,10 @@ const EditTitle = ({
       placeholder={t('Untitled')}
       value={value}
       onChange={onChange}
-      inputRef={ref}
+      ref={ref} // Changed back to ref={ref}
       maxRows={5}
       readOnly={readOnly}
-      {...customHtmlProps}
+      // {...customHtmlProps} // Temporarily removed to isolate the issue
     />
   );
 };

@@ -1,7 +1,7 @@
-import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
-import TextareaAutosize from 'react-textarea-autosize'; // Make sure this is the correct import if it's namespaced
+import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef, CSSProperties } from 'react';
+import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'next-i18next';
-import { Skeleton } from '@material-ui/lab'; 
+import { Skeleton } from '@material-ui/lab';
 
 interface Props {
   value: string;
@@ -9,7 +9,7 @@ interface Props {
   isLoading?: boolean;
   readOnly?: boolean;
   customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className' | 'ref'>;
-  className?: string;
+  className?: string; // className prop is defined
 }
 
 const EditTitle = ({
@@ -18,7 +18,7 @@ const EditTitle = ({
   isLoading = false,
   readOnly = false,
   customHtmlProps,
-  className,
+  className, // Destructured here
 }: Props) => {
   const { t } = useTranslation('common');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -29,7 +29,8 @@ const EditTitle = ({
     }
   }, [readOnly, ref]);
 
-  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none \${className || ''}`.trim();
+  // className is used here to construct combinedClassName
+  const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none ${className || ''}`.trim();
 
   if (isLoading) {
     return <Skeleton variant="text" width="70%" height={40} style={{ marginBottom: '8px' }} />;
@@ -37,11 +38,11 @@ const EditTitle = ({
 
   return (
     <TextareaAutosize
-      className={combinedClassName}
+      className={combinedClassName} // combinedClassName (which uses className) is applied here
       placeholder={t('Untitled')}
       value={value}
       onChange={onChange}
-      inputRef={ref} // Changed from ref={ref} to inputRef={ref}
+      inputRef={ref} // Using inputRef as per previous fix for TextareaAutosize
       maxRows={5}
       readOnly={readOnly}
       {...customHtmlProps}

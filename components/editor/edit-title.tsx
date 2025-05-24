@@ -1,4 +1,4 @@
-import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef, CSSProperties } from 'react';
+import { DetailedHTMLProps, InputHTMLAttributes, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useTranslation } from 'next-i18next';
 import { Skeleton } from '@material-ui/lab';
@@ -9,7 +9,8 @@ interface Props {
   isLoading?: boolean;
   readOnly?: boolean;
   customHtmlProps?: Omit<DetailedHTMLProps<InputHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange' | 'readOnly' | 'style' | 'className' | 'ref'>;
-  className?: string; // className prop is defined
+  className?: string;
+  // style prop removed from Props interface as it's not passed to TextareaAutosize
 }
 
 const EditTitle = ({
@@ -18,7 +19,7 @@ const EditTitle = ({
   isLoading = false,
   readOnly = false,
   customHtmlProps,
-  className, // Destructured here
+  className,
 }: Props) => {
   const { t } = useTranslation('common');
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -29,7 +30,6 @@ const EditTitle = ({
     }
   }, [readOnly, ref]);
 
-  // className is used here to construct combinedClassName
   const combinedClassName = `w-full resize-none bg-transparent text-3xl font-bold outline-none ${className || ''}`.trim();
 
   if (isLoading) {
@@ -38,11 +38,11 @@ const EditTitle = ({
 
   return (
     <TextareaAutosize
-      className={combinedClassName} // combinedClassName (which uses className) is applied here
+      className={combinedClassName}
       placeholder={t('Untitled')}
       value={value}
       onChange={onChange}
-      inputRef={ref} // Using inputRef as per previous fix for TextareaAutosize
+      inputRef={ref}
       maxRows={5}
       readOnly={readOnly}
       {...customHtmlProps}
